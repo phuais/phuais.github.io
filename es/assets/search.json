@@ -1,0 +1,47 @@
+
+
+[
+  
+  
+    
+    
+      {
+        "title": "Hola Mundo",
+        "excerpt": "Hola! Este es el primer post del blog. Aún no he escrito nada, pero pronto habrá novedades. Saludos!\n",
+        "content": "Hola! Este es el primer post del blog. Aún no he escrito nada, pero pronto habrá novedades. Saludos!\n",
+        "url": "/es/general/2020/10/22/hello-world/"
+      },
+    
+      {
+        "title": "Función de R: vector de fechas",
+        "excerpt": "Aquí les presento una función de R muy simple, que puede ser útil para análisis de series temporales. La salida de la función es un vector de fechas (caracteres) de longitud definida en total_days, cada elemento representando una fecha, comenzando desde el día, mes y año elegidos por el usuario; con un formato particular también definido por el usuario. Esta función puede ser útil para obtener las etiquetas para el eje x en gráficos de series temporales.\n\n",
+        "content": "Aquí les presento una función de R muy simple, que puede ser útil para análisis de series temporales. La salida de la función es un vector de fechas (caracteres) de longitud definida en total_days, cada elemento representando una fecha, comenzando desde el día, mes y año elegidos por el usuario; con un formato particular también definido por el usuario. Esta función puede ser útil para obtener las etiquetas para el eje x en gráficos de series temporales.\n\nIngresa valores numéricos para day (día), month (mes), year (año) y total_days (días totales). Personaliza el formato de la fecha: elige entre “d”, “m”, “y”, “dm”, “mdy” or “dmy” (“d”: día; “m”: mes; “y”: año). Elige el caracter que separará los términos de la fecha (sólo válido cuando el formato es “dm”, “mdy” o “dmy”).\n\ndate_vec &lt;- function(day = 1, month = 1, year = 2020, \n                     total_days = 40, format = \"dmy\", sep = \"/\")\n{\n  ...\n}\n\n\nPor ejemplo, generemos un vector de 5 fechas desde el 30 de Diciembre de 2020:\n\n&gt; date_vec(day = 30, month = 12, year = 2020, total_days = 5)\n\n1] \"30/12/2020\" \"31/12/2020\" \"01/01/2021\" \"02/01/2021\" \"03/01/2021\"\n\n\nCambiemos el formato:\n\n&gt; date_vec(day = 30, month = 12, year = 2020, total_days = 5, format = \"mdy\", sep = \"-\")\n\n[1] \"12-30-2020\" \"12-31-2020\" \"01-01-2021\" \"01-02-2021\" \"01-03-2021\"\n\nLa función también funciona para años bisiestos (i.e. 29 días para Febrero en años bisiestos):\n\n&gt; date_vec(day = 26, month = 2, year = 2016, total_days = 5)\n\n[1] \"26/02/2016\" \"27/02/2016\" \"28/02/2016\" \"29/02/2016\" \"01/03/2016\"\n\nPuedes obtener el código completo de este función en mi página de GitHub, aquí.\n\n\n\n",
+        "url": "/es/r/2020/10/23/data-vector/"
+      },
+    
+      {
+        "title": "Función de R: block average",
+        "excerpt": "Comúnmente en nuestros estudios, necesitamos el valor medio de una secuencia de números, así también como un nivel de incerteza para esa estimación. Esto es, el error estándar, el cual se calcula como el cociente entre la desviación estandar de los datos y la raíz cuadrada del número de observaciones.\n\n",
+        "content": "Comúnmente en nuestros estudios, necesitamos el valor medio de una secuencia de números, así también como un nivel de incerteza para esa estimación. Esto es, el error estándar, el cual se calcula como el cociente entre la desviación estandar de los datos y la raíz cuadrada del número de observaciones.\n\nSin embargo, este procedimiento resulta erróneo cuando nuestros datos no son independientes. Este es el caso, por ejemplo, de las series temporales: cada nuevo valor de la serie depende en mayor o menor medida de los valores registrados anteriormente.\n\nEl método “block average”\n\nCalcular el error estándar de datos no independientes mediante la fórmula clásica arrojará un valor artificialmente pequeño. Aún tengamos n muestras, estas no son independientes (por ejemplo, en el caso de series temporales), por lo que en realidad tendremos un menor número de muestras independientes. El método “block average” (no encontré referencias de este método en español) es útil para tratar este problema. El mismo consiste en dividir los datos (N valores) en n bloques de igual tamaño s (n * s = N). Luego, calculamos el valor medio para cada bloque, la media de estas medias por bloque, y el error estándar para esta última (la media de medias).\n\nLa clave del método consiste en determinar el tamaño “correcto” de los bloques, a partir de los cuales los bloques de datos son independientes entre sí. Una buena forma de hacer esto consiste en calcular el error estándar para la media de las medias (en plural, por cada media calculada por bloque de un tamaño determinado), para diferentes tamaños de bloques. Luego, se grafican estas estimaciones en función de los tamaños de los bloques. El mejor valor para el error estándar será aquel que se mantiene más o menos constante a medida que el tamaño de los bloques crece.\n\nPara este propósito, he programado una función en R. Veamos un ejemplo que creo esclarecerá el método.\n\nEn primer lugar, simulemos algunos datos alreatorios y no independientes. Una serie temporal:\n\n# Fijamos la semilla para obtener siempre los mismos resultados\nset.seed(42)\n\n# Generamos 1000 valores aleatorios a partir de una distribución normal\n# con media = 1 y desviación estandar = 10\nx &lt;- rnorm(1000, mean = 1, sd = 10)\n\n# Generamos una nueva variable \"sum\" la cual será calculada como la suma\n# del valor en cada momento, más los últimos tres valores premultiplicados\n# algún coeficiente aleatorio\nsum &lt;- rep(0, length(x))\nsum[1] &lt;- x[1]\nfor(i in 2:length(x))\n{\n  # Hacer el cálculo sólo si hay 3 valores previos\n  if(i &gt; 3)\n  {\n    sum[i] &lt;- runif(1, 0.5, 1) * x[i] + runif(1, 0.4, 0.6) * sum[i-1] + \n              runif(1, 0.2, 0.4) * sum[i-2] + runif(1, 0, 0.2) * sum[i-3]\n  }\n  else\n  {\n    sum[i] &lt;- sum[i-1] + x[i]\n  }\n}\n\nVeamos como se ve esta serie temporal en un gráfico:\n\n  \n  Serie temporal simulada\n\n\nApliquemos el método “block average”, usando la función block_average en R. Esta función tiene tres argumentos: x es la secuencia de números (un vector numérico) a partir de la cual queremos calcular un error estándar; block_sizes es un vector numérico que contiene los diferentes tamaños de bloque a evaluar; y n_blocks es un vector numérico con el número de bloques a evaluar. Los dos últimos argumentos son opcionales, aunque se recomienda definir uno de ellos. Si se define n_blocks, los tamaños de los bloques a evaluar se calculan automáticamente. Por ejemplo, imaginemos que tenemos una secuencia de 100 números de una serie temporal y definimos n_blocks = c (10, 25, 50). Luego, los tamaños de los bloques se calcularán haciendo el cociente entre 100 (la longitud de la secuencia numérica) y cada número definido en n_blocks: 10, 4 y 2. Si ambos argumentos están definidos, la función solo trabaja con los valores definidos en block_sizes. Recomiendo definir manualmente los tamaños de bloque en el argumento block_sizes, ya que es más intuitivo.\n\nLa función genera un gráfico de puntos con los errores estándar en relación con el tamaño del bloque. Si se asigna a un objeto, la función también devuelve un data.frame a partir del cual se creó el gráfico. Esto puede resultar útil si el usuario desea realizar análisis adicionales. En nuestro ejemplo:\n\n# seq(5, 150, 5) define una secuencia de números desde 5 a 150, cada 5\nblock_average(x = sum, block_sizes = seq(5, 150, 5))\n\nEl gráfico:\n\n  \n  Errores estándar a diferentes tamaños de bloques. Serie temporal.\n\n\nPodemos ver que el error estándar aumenta de forma aparentemente logarítmica, hasta un valor de aproximadamente 1,6 a partir del cual la tendencia parece estabilizarse. Podríamos ajustar una curva a esta nube de puntos, para obtener un valor más preciso del error estándar una vez estabilizado (no se hace aquí). ¿Qué pasa si calculamos el error estándar de la forma clásica?\n\nsd(sum) / sqrt(length(sum))\n&gt;&gt; 0.4302361\n\n\nComo era de esperar, el error estándar calculado con el método “block average” es mayor que el calculado clásicamente. Esto sucede porque el número de muestras independientes reales es menor que el número total de muestras.\n\n¿Qué sucede si aplicamos el método “block average” a un conjunto independiente de números? En la secuencia simulada anterior, el vector x contiene números aleatorios e independientes. Apliquemos la función a este vector:\n\nblock_average(x = x, block_sizes = seq(5, 150, 5))\n\n\nEl gráfico:\n\n  \n  Errores estándar a diferentes tamaños de bloques. Datos independientes.\n\n\nComo era de esperar, cuando los datos son independientes, no existe una relación clara entre el error estándar y el tamaño del bloque.\n\nAquí hay algunas referencias del método:\n\nhttp://sachinashanbhag.blogspot.com/2013/08/block-averaging-estimating-uncertainty.html\n\nhttps://www.quora.com/What-is-the-block-average-method\n\nhttp://realerthinks.com/block-averaging-bootstrapping-estimating-mean-autocorrelated-data/\n\nEl código está disponible en my página de GitHub, aquí.\n\n\n\n",
+        "url": "/es/r/2020/12/15/block-average/"
+      },
+    
+  
+  
+  
+  {
+    "title": "Categories",
+    "excerpt": "Category index\n",
+    "content": "\n",
+    "url": "/es/categories/"
+  },
+  
+  {
+    "title": "Blog",
+    "excerpt": "\n",
+    "content": "\n",
+    "url": "/es/blog/"
+  }
+  
+]
+

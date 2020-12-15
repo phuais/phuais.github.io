@@ -1,0 +1,47 @@
+
+
+[
+  
+  
+    
+    
+      {
+        "title": "Hello World",
+        "excerpt": "I thought it would be funny (and a cliché) to start the first post of this blog with a classic “Hello World”. I haven’t written anything yet but I will be do it soon!\n",
+        "content": "I thought it would be funny (and a cliché) to start the first post of this blog with a classic “Hello World”. I haven’t written anything yet but I will be do it soon!\n",
+        "url": "/general/2020/10/22/hello-world/"
+      },
+    
+      {
+        "title": "R function: vector of dates",
+        "excerpt": "Here I present a simple R function that may be useful for time series analyses. The function outputs a character vector of length defined in total_days, each element representing a date, starting from the day, month and year chosen by the user, with a particular format also defined by the user. This function may be useful to get the labels of the x axis for plots.\n\n",
+        "content": "Here I present a simple R function that may be useful for time series analyses. The function outputs a character vector of length defined in total_days, each element representing a date, starting from the day, month and year chosen by the user, with a particular format also defined by the user. This function may be useful to get the labels of the x axis for plots.\n\nInput numeric values for day, month, year and total_days. Customize the format of the date: choose between “d”, “m”, “y”, “dm”, “mdy” or “dmy” (“d”: day; “m”: month; “y”: year). Choose the character string that will separate the terms (only valid when format is “dm”, “mdy” or “dmy”).\n\ndate_vec &lt;- function(day = 1, month = 1, year = 2020, \n                     total_days = 40, format = \"dmy\", sep = \"/\")\n{\n  ...\n}\n\n\nFor example, let’s generate a vector of 5 dates from the December 30 of 2020:\n\n&gt; date_vec(day = 30, month = 12, year = 2020, total_days = 5)\n\n1] \"30/12/2020\" \"31/12/2020\" \"01/01/2021\" \"02/01/2021\" \"03/01/2021\"\n\n\nLet’s change the format:\n\n&gt; date_vec(day = 30, month = 12, year = 2020, total_days = 5, format = \"mdy\", sep = \"-\")\n\n[1] \"12-30-2020\" \"12-31-2020\" \"01-01-2021\" \"01-02-2021\" \"01-03-2021\"\n\nThe function supports leap years (i.e. 29 days for February in leap years):\n\n&gt; date_vec(day = 26, month = 2, year = 2016, total_days = 5)\n\n[1] \"26/02/2016\" \"27/02/2016\" \"28/02/2016\" \"29/02/2016\" \"01/03/2016\"\n\n\nYou can get the full code for this function from my GitHub page, here.\n\n\n\n",
+        "url": "/r/2020/10/23/data-vector/"
+      },
+    
+      {
+        "title": "R function: block average",
+        "excerpt": "Commonly, we need to calculate a mean value of a sequence of numbers, and we would also calculate a level of uncertainty for that estimate. This is, the standard error, which is calculated as the quotient between the standard deviation of the data and the squared root of the number of observations.\n\n",
+        "content": "Commonly, we need to calculate a mean value of a sequence of numbers, and we would also calculate a level of uncertainty for that estimate. This is, the standard error, which is calculated as the quotient between the standard deviation of the data and the squared root of the number of observations.\n\nHowever, this procedure turns out to be wrong when our data is not independent. This is the case, for example, of time series data: each new value of the sequence depends more or less of the values recorded previously.\n\nThe block average method\n\nCalculating the standard error of not independent data by using the classic equation would output very artificially small standard errors for the mean. Although we have n samples, these are not independent (for example, in the case of time series), so in reality we have a less number of independent samples. The block average method is useful to deal with this problem. This method consists on dividing the data (N values) in n chunks or blocks of equal size s (n * s = N). Then, we compute the mean value for each block, the mean of these block means, and the standard error for the latter (the mean of means).\n\nThen, the key of the method consists on determining the “correct” size of the blocks, from which the blocks of data are independent from each other. A good way to do this consists on calculating the standard error of the mean of means (means in plural, for each calculated mean per block of a fixed size), for different values of block sizes. Then, plotting these estimates in relation to the the size of the blocks. The best value of the standard error would be the one that remains more or less constant while the size of the blocks increases.\n\nFor this purpose, I have coded an R function. Let’s see an example that hopefully will clarify the method.\n\nFirstly, we simulate some random and non-independent data. We will simulate a time series:\n\n# We set the seed in order to get always the same results\nset.seed(42)\n\n# Generates 1000 random values from a normal distribution \n# with mean = 1 and sd = 10\nx &lt;- rnorm(1000, mean = 1, sd = 10)\n\n# We generate a new variable \"sum\" that will be calculated as the sum\n# of the actual value, plus the three previous values premultiplied by\n# a random coefficiente\nsum &lt;- rep(0, length(x))\nsum[1] &lt;- x[1]\nfor(i in 2:length(x))\n{\n  # Do the work only if there are three values down\n  if(i &gt; 3)\n  {\n    sum[i] &lt;- runif(1, 0.5, 1) * x[i] + runif(1, 0.4, 0.6) * sum[i-1] + \n              runif(1, 0.2, 0.4) * sum[i-2] + runif(1, 0, 0.2) * sum[i-3]\n  }\n  else\n  {\n    sum[i] &lt;- sum[i-1] + x[i]\n  }\n}\n\nLet’s see how the plot of this simulated time series look likes:\n\n  \n  Simulated time series data\n\n\nThen, we apply the block average method, by using the function block_average in R. This functions has three arguments: x is the sequence of numbers (a numeric vector) from which we want to calculate a standard error; block_sizes is a numeric vector which contains the different block sizes to be assessed; and n_blocks is a numeric vector with the number of blocks to be evaluated. The two latter arguments are optional, although is recommended to define one of them. If n_blocks is defined, the sizes of the blocks to be evaluated are automatically calculated. For instance, let’s imagine we have a sequence of 100 numbers from a time series, and we define n_blocks = c(10, 25, 50). Then, the sizes of the blocks will be calculated as 100 (the length of the numeric sequence) divided by each number of n_blocks: 10, 4, and 2. If both arguments are defined, the function only works with the values defined on block_sizes. I recommend to manually define the block sizes in the block_sizesargument, as it is more intuitive.\n\nThe function outputs a scatter plot with the standard errors in relation to the block size. If assigned to a object, the function also returns a dataframe from which the plot is created. This may be useful if the user wants to do some extra analyses. In our example:\n\n# seq(5, 150, 5) defines a sequence of numbers from 5 to 150, by 5\nblock_average(x = sum, block_sizes = seq(5, 150, 5))\n\nThe plot:\n\n  \n  Standard Errors at different block sizes. Time series data.\n\n\nWe can see that the standard error increases in a logarithmic way, until a value of approximately 1.6 from which the trend appears to stabilize. We could fit a curve to this cloud of points, in order to get a more precise value of the stabilized standard error (not done here). What happens if we calculate the standard error in the classic way?\n\nsd(sum) / sqrt(length(sum))\n&gt;&gt; 0.4302361\n\n\nAs expected, the standard error calculated with the block average method is larger than the one calculated classically. This happens because the number of real independent samples are less than the total number of samples.\n\nWhat happens if we apply the block average method to an independent set of numbers? In the simulated sequence above, the vector x contains independent numbers. Let’s apply the function to this vector:\n\nblock_average(x = x, block_sizes = seq(5, 150, 5))\n\n\nThe plot:\n\n  \n  Standard Errors at different block sizes. Independent data.\n\n\nAs expected, there is no clear relationship between the standard error and the block size for independent values.\n\nHere are some references of the block average method:\n\nhttp://sachinashanbhag.blogspot.com/2013/08/block-averaging-estimating-uncertainty.html\n\nhttps://www.quora.com/What-is-the-block-average-method\n\nhttp://realerthinks.com/block-averaging-bootstrapping-estimating-mean-autocorrelated-data/\n\nYou can get the full code for this function from my GitHub page, here.\n\n\n\n",
+        "url": "/r/2020/12/15/block-average/"
+      },
+    
+  
+  
+  
+  {
+    "title": "Categories",
+    "excerpt": "Category index\n",
+    "content": "\n",
+    "url": "/categories/"
+  },
+  
+  {
+    "title": "Blog",
+    "excerpt": "\n",
+    "content": "\n",
+    "url": "/blog/"
+  }
+  
+]
+
